@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Photo Booth Manager & Analytics</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans Thai', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 250px;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        /* สำหรับปุ่มบนมือถือให้กดง่ายขึ้น */
+        .touch-target {
+            min-height: 44px;
+            min-width: 44px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pb-20 md:pb-0">
+
+    <!-- Header -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📸</span>
+                    <div>
+                        <h1 class="font-bold text-slate-800 leading-none">Photo Booth</h1>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Manager Pro</p>
+                    </div>
+                </div>
+                <div id="statusBadge" class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">
+                    Offline
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-6 w-full space-y-8">
+
+        <!-- Quick Stats for Mobile -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">รายได้วันนี้</p>
+                <p class="text-xl font-black text-blue-600 mt-1"><span id="totalRevenueDisplay">0</span> <span class="text-[10px] text-slate-400 font-normal">กีบ</span></p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">คิวสำเร็จ</p>
+                <p class="text-xl font-black text-slate-800 mt-1"><span id="totalCustomersDisplay">0</span> <span class="text-[10px] text-slate-400 font-normal">คน</span></p>
+            </div>
+            <div class="hidden md:block bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">จำนวนรูป</p>
+                <p class="text-xl font-black text-slate-800 mt-1"><span id="totalShotsDisplay">0</span> <span class="text-[10px] text-slate-400 font-normal">รูป</span></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left: Add Order -->
+            <div class="lg:col-span-5 space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-sm uppercase">
+                        <span class="w-6 h-6 bg-blue-100 text-blue-600 rounded flex items-center justify-center text-xs">＋</span> รับออเดอร์ใหม่
+                    </h3>
+                    <form id="orderForm" class="space-y-4">
+                        <input type="text" id="customerName" placeholder="ชื่อลูกค้า..." 
+                            class="w-full px-4 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" required>
+                        
+                        <div class="grid grid-cols-1 gap-2">
+                            <div class="flex items-center justify-between p-3 rounded-xl bg-blue-50/50 border border-blue-100">
+                                <span class="text-sm font-bold text-slate-700">4 รูป (50k)</span>
+                                <div class="flex items-center gap-4 bg-white rounded-lg px-2 py-1 shadow-sm">
+                                    <button type="button" onclick="updateQty(1, -1)" class="touch-target text-slate-400 font-bold">➖</button>
+                                    <span id="qty-1" class="font-bold w-4 text-center text-sm">0</span>
+                                    <button type="button" onclick="updateQty(1, 1)" class="touch-target text-blue-600 font-bold">➕</button>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/50 border border-purple-100">
+                                <span class="text-sm font-bold text-slate-700">10 รูป (100k)</span>
+                                <div class="flex items-center gap-4 bg-white rounded-lg px-2 py-1 shadow-sm">
+                                    <button type="button" onclick="updateQty(2, -1)" class="touch-target text-slate-400 font-bold">➖</button>
+                                    <span id="qty-2" class="font-bold w-4 text-center text-sm">0</span>
+                                    <button type="button" onclick="updateQty(2, 1)" class="touch-target text-purple-600 font-bold">➕</button>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between p-3 rounded-xl bg-orange-50/50 border border-orange-100">
+                                <span class="text-sm font-bold text-slate-700">1 รูป (15k)</span>
+                                <div class="flex items-center gap-4 bg-white rounded-lg px-2 py-1 shadow-sm">
+                                    <button type="button" onclick="updateQty(3, -1)" class="touch-target text-slate-400 font-bold">➖</button>
+                                    <span id="qty-3" class="font-bold w-4 text-center text-sm">0</span>
+                                    <button type="button" onclick="updateQty(3, 1)" class="touch-target text-orange-600 font-bold">➕</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex items-center justify-between">
+                            <div class="text-xl font-black text-slate-800"><span id="liveTotal">0</span> <span class="text-xs font-normal text-slate-400">กีบ</span></div>
+                            <button type="submit" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all text-sm">
+                                บันทึกคิว
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Dashboard Charts (Desktop only or show below on mobile) -->
+                <div class="hidden lg:block bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h4 class="font-bold text-xs uppercase text-slate-400 mb-4">สัดส่วนรายได้</h4>
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Queue List -->
+            <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+                <div class="p-5 border-b border-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-sm uppercase flex items-center gap-2">
+                        ⏱️ คิวรอถ่าย <span id="queueCountBadge" class="bg-pink-100 text-pink-600 px-2 py-0.5 rounded text-[10px]">0</span>
+                    </h3>
+                </div>
+
+                <div class="p-5 flex-grow overflow-y-auto custom-scroll min-h-[300px]">
+                    <div id="emptyState" class="flex flex-col items-center justify-center h-full text-slate-300 py-10">
+                        <span class="text-4xl mb-2">📸</span>
+                        <p class="text-sm">ไม่มีลูกค้าในคิว</p>
+                    </div>
+                    <div id="queueList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Table (Desktop only) -->
+        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-xs uppercase text-slate-500">ประวัติล่าสุด</h3>
+                <button onclick="exportCSV()" class="text-[10px] font-bold text-blue-600 uppercase">Export CSV</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <tbody id="historyTableBody" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <section class="bg-slate-900 text-white rounded-2xl p-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h3 class="font-bold text-sm">🔗 การเชื่อมต่อ Google Sheets</h3>
+                    <p class="text-slate-500 text-[10px]">ข้อมูลจะถูกซิงค์ไปที่ Sheet อัตโนมัติเมื่อถ่ายเสร็จ</p>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <input type="password" id="scriptUrlInput" placeholder="Google Script URL..." class="bg-slate-800 border-none text-white text-xs rounded-lg px-4 py-2 flex-grow md:w-64 outline-none">
+                    <button onclick="saveConnection()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-xs font-bold transition-all">บันทึก</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const PACKAGES = [
+            { id: 1, name: '4 รูป', price: 50000, shots: 4, color: 'blue' },
+            { id: 2, name: '10 รูป', price: 100000, shots: 10, color: 'purple' },
+            { id: 3, name: '1 รูป', price: 15000, shots: 1, color: 'orange' },
+        ];
+
+        let state = {
+            queue: JSON.parse(localStorage.getItem('pb_queue')) || [],
+            history: JSON.parse(localStorage.getItem('pb_history')) || [],
+            qty: { 1: 0, 2: 0, 3: 0 },
+            scriptUrl: localStorage.getItem('google_script_url') || ''
+        };
+
+        // Charts
+        const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
+        let revenueChart = new Chart(ctxRevenue, {
+            type: 'doughnut',
+            data: { 
+                labels: PACKAGES.map(p => p.name), 
+                datasets: [{ data: [0, 0, 0], backgroundColor: ['#3b82f6', '#a855f7', '#f97316'], borderWidth: 0, hoverOffset: 4 }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                cutout: '70%',
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } 
+            }
+        });
+
+        function saveState() {
+            localStorage.setItem('pb_queue', JSON.stringify(state.queue));
+            localStorage.setItem('pb_history', JSON.stringify(state.history));
+        }
+
+        function saveConnection() {
+            const url = document.getElementById('scriptUrlInput').value.trim();
+            if (!url) return alert('กรุณาระบุ URL');
+            state.scriptUrl = url;
+            localStorage.setItem('google_script_url', url);
+            updateStatusUI();
+            alert('บันทึกการเชื่อมต่อแล้ว');
+        }
+
+        function updateStatusUI() {
+            const badge = document.getElementById('statusBadge');
+            const input = document.getElementById('scriptUrlInput');
+            if (state.scriptUrl) {
+                badge.innerText = 'Connected to Sheet';
+                badge.className = 'text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600';
+                input.value = state.scriptUrl;
+            } else {
+                badge.innerText = 'Offline Mode';
+                badge.className = 'text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500';
+            }
+        }
+
+        async function syncToSheet(item) {
+            if (!state.scriptUrl) return 'local';
+            try {
+                await fetch(state.scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    body: JSON.stringify({
+                        customer: item.name,
+                        details: item.items.map(i => `${i.name} x${i.qty}`).join(', '),
+                        totalPrice: item.totalPrice,
+                        totalShots: item.totalShots
+                    })
+                });
+                return 'synced';
+            } catch (e) { return 'error'; }
+        }
+
+        function updateQty(id, change) {
+            state.qty[id] = Math.max(0, state.qty[id] + change);
+            document.getElementById(`qty-${id}`).innerText = state.qty[id];
+            calculateTotal();
+        }
+
+        function calculateTotal() {
+            let total = 0;
+            Object.entries(state.qty).forEach(([id, qty]) => {
+                total += PACKAGES.find(p => p.id == id).price * qty;
+            });
+            document.getElementById('liveTotal').innerText = total.toLocaleString();
+        }
+
+        document.getElementById('orderForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nameEl = document.getElementById('customerName');
+            let items = [], totalShots = 0, totalPrice = 0;
+
+            Object.entries(state.qty).forEach(([id, qty]) => {
+                if (qty > 0) {
+                    const pkg = PACKAGES.find(p => p.id == id);
+                    items.push({ ...pkg, qty });
+                    totalShots += pkg.shots * qty;
+                    totalPrice += pkg.price * qty;
+                }
+            });
+
+            if (items.length === 0) return alert('กรุณาเลือกอย่างน้อย 1 แพ็กเกจ');
+
+            state.queue.push({
+                id: Date.now(),
+                name: nameEl.value,
+                items, totalShots, totalPrice,
+                time: new Date().toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })
+            });
+
+            nameEl.value = '';
+            state.qty = { 1: 0, 2: 0, 3: 0 };
+            [1, 2, 3].forEach(id => document.getElementById(`qty-${id}`).innerText = '0');
+            calculateTotal();
+            saveState();
+            render();
+        });
+
+        async function completeOrder(id) {
+            const idx = state.queue.findIndex(q => q.id === id);
+            const item = state.queue[idx];
+            
+            const historyItem = { ...item, completedAt: new Date() };
+            state.history.unshift(historyItem);
+            state.queue.splice(idx, 1);
+            
+            saveState();
+            render();
+
+            const syncStatus = await syncToSheet(historyItem);
+            historyItem.syncStatus = syncStatus;
+            render();
+        }
+
+        function render() {
+            // Queue
+            const listEl = document.getElementById('queueList');
+            const emptyEl = document.getElementById('emptyState');
+            document.getElementById('queueCountBadge').innerText = state.queue.length;
+
+            if (state.queue.length === 0) {
+                emptyEl.style.display = 'flex';
+                listEl.innerHTML = '';
+            } else {
+                emptyEl.style.display = 'none';
+                listEl.innerHTML = state.queue.map(item => `
+                    <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm fade-in">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-slate-800 text-sm">${item.name}</span>
+                            <span class="text-[10px] text-slate-400">${item.time}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1 mb-4">
+                            ${item.items.map(i => `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${i.name} x${i.qty}</span>`).join('')}
+                        </div>
+                        <div class="flex justify-between items-center pt-3 border-t border-slate-50">
+                            <span class="text-xs font-bold text-pink-500">${item.totalShots} รูป</span>
+                            <button onclick="completeOrder(${item.id})" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-all">✅ เสร็จสิ้น</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Stats & Charts
+            const totalRevenue = state.history.reduce((s, i) => s + i.totalPrice, 0);
+            const totalShots = state.history.reduce((s, i) => s + i.totalShots, 0);
+            document.getElementById('totalRevenueDisplay').innerText = totalRevenue.toLocaleString();
+            document.getElementById('totalCustomersDisplay').innerText = state.history.length;
+            document.getElementById('totalShotsDisplay').innerText = totalShots.toLocaleString();
+
+            let pkgRevenue = [0, 0, 0];
+            state.history.forEach(h => {
+                h.items.forEach(item => {
+                    const idx = PACKAGES.findIndex(p => p.id == item.id);
+                    if (idx !== -1) pkgRevenue[idx] += (item.price * item.qty);
+                });
+            });
+            revenueChart.data.datasets[0].data = pkgRevenue;
+            revenueChart.update();
+
+            // History Table
+            const hBody = document.getElementById('historyTableBody');
+            hBody.innerHTML = state.history.slice(0, 10).map(item => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="p-4 text-slate-400 text-[10px]">${item.time}</td>
+                    <td class="p-4 font-bold text-slate-700">${item.name}</td>
+                    <td class="p-4 text-slate-500 text-xs">${item.items.map(i=>`${i.name}x${i.qty}`).join(', ')}</td>
+                    <td class="p-4 text-right font-black text-blue-600">${item.totalPrice.toLocaleString()}</td>
+                    <td class="p-4 text-center">${item.syncStatus === 'synced' ? '☁️' : '➖'}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-300">ไม่มีประวัติการขาย</td></tr>';
+        }
+
+        function exportCSV() {
+            if(!state.history.length) return;
+            let csv = "Time,Customer,Package,Price,Shots\n";
+            state.history.forEach(h => csv += `${h.time},${h.name},${h.items.map(i=>`${i.name}x${i.qty}`).join('|')},${h.totalPrice},${h.totalShots}\n`);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `sales_${new Date().toLocaleDateString()}.csv`;
+            link.click();
+        }
+
+        updateStatusUI();
+        render();
+    </script>
+</body>
+</html>
