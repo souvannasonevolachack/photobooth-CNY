@@ -17,6 +17,7 @@
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .touch-target { min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col pb-20 md:pb-0">
@@ -97,7 +98,7 @@
 
                 <div class="p-5 flex-grow overflow-y-auto custom-scroll">
                     <div id="emptyState" class="flex flex-col items-center justify-center h-full text-slate-300 py-10">
-                        <span class="text-4xl mb-2">📷</span>
+                        <span class="text-4xl mb-2">📸</span>
                         <p class="text-sm">ไม่มีคิวในขณะนี้</p>
                     </div>
                     <div id="queueList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -132,8 +133,8 @@
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // Global environment variables
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // Configuration
+        const firebaseConfig = JSON.parse(__firebase_config || '{}');
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'photobooth-default';
         
         const app = initializeApp(firebaseConfig);
@@ -153,21 +154,69 @@
             qty: { 1: 0, 2: 0, 3: 0 }
         };
 
-        // UI Updates
+        // Export functions to window early to ensure buttons work
+        window.updateQty = (id, change) => {
+            const pkgId = Number(id);
+            state.qty[pkgId] = Math.max(0, (state.qty[pkgId] || 0) + change);
+            
+            const labelEl = document.getElementById(`qty-${pkgId}`);
+            if (labelEl) labelEl.innerText = state.qty[pkgId];
+            
+            let total = 0;
+            Object.entries(state.qty).forEach(([qid, count]) => {
+                const p = PACKAGES.find(pkg => pkg.id == qid);
+                if (p) total += p.price * count;
+            });
+            document.getElementById('liveTotal').innerText = total.toLocaleString();
+        };
+
+        window.completeOrder = async (id) => {
+            if (!state.user) return;
+            const item = state.queue.find(q => q.id === id);
+            if (!item) return;
+
+            try {
+                const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+                const queueDoc = doc(db, 'artifacts', appId, 'public', 'data', 'queue', id);
+
+                const record = { ...item, completedAt: Date.now() };
+                delete record.id;
+
+                await addDoc(historyRef, record);
+                await deleteDoc(queueDoc);
+            } catch (err) {
+                console.error("Complete error:", err);
+                alert('จบงานไม่สำเร็จ: ' + err.message);
+            }
+        };
+
+        window.exportCSV = () => {
+            if (state.history.length === 0) return alert('ไม่มีข้อมูลให้ดาวน์โหลด');
+            let csv = "Time,Customer,Packages,Price,Shots\n";
+            state.history.forEach(h => {
+                const items = h.items ? h.items.map(i => `${i.name}x${i.qty}`).join(' | ') : '';
+                csv += `${h.time || ''},${h.name || ''},"${items}",${h.totalPrice || 0},${h.totalShots || 0}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `photobooth_report_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        // UI Status
         const updateStatusUI = (status, colorClass) => {
             const el = document.getElementById('syncStatus');
             const icon = document.getElementById('statusIcon');
             const text = document.getElementById('statusText');
-            
-            text.innerText = status;
-            el.className = `text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 ${colorClass}`;
-            icon.innerText = colorClass.includes('green') ? '🟢' : (colorClass.includes('red') ? '🔴' : '⚪');
+            if (text) text.innerText = status;
+            if (el) el.className = `text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 ${colorClass}`;
+            if (icon) icon.innerText = colorClass.includes('green') ? '🟢' : (colorClass.includes('red') ? '🔴' : '⚪');
         };
 
-        // Initialization
+        // Initialize Auth & Sync
         const init = async () => {
             try {
-                // RULE 3: Auth FIRST
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -190,18 +239,15 @@
         };
 
         const startSync = () => {
-            // RULE 1: Strict Paths
             const queueRef = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
             const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
 
-            // Listen to Queue (Rule 2: No complex queries)
             onSnapshot(queueRef, (snap) => {
                 state.queue = snap.docs.map(d => ({ id: d.id, ...d.data() }))
                                  .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
                 render();
             }, (err) => console.error("Queue Sync Error:", err));
 
-            // Listen to History
             onSnapshot(historyRef, (snap) => {
                 state.history = snap.docs.map(d => ({ id: d.id, ...d.data() }))
                                    .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
@@ -209,75 +255,7 @@
             }, (err) => console.error("History Sync Error:", err));
         };
 
-        // Form Logic
-        window.updateQty = (id, change) => {
-            state.qty[id] = Math.max(0, state.qty[id] + change);
-            document.getElementById(`qty-${id}`).innerText = state.qty[id];
-            
-            let total = 0;
-            Object.entries(state.qty).forEach(([qid, count]) => {
-                total += PACKAGES.find(p => p.id == qid).price * count;
-            });
-            document.getElementById('liveTotal').innerText = total.toLocaleString();
-        };
-
-        document.getElementById('orderForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!state.user) return alert('รอกำลังเชื่อมต่อฐานข้อมูล...');
-
-            const name = document.getElementById('customerName').value;
-            let items = [];
-            let totalShots = 0;
-            let totalPrice = 0;
-
-            Object.entries(state.qty).forEach(([id, q]) => {
-                if (q > 0) {
-                    const p = PACKAGES.find(pkg => pkg.id == id);
-                    items.push({ name: p.name, qty: q, price: p.price, id: p.id });
-                    totalShots += p.shots * q;
-                    totalPrice += p.price * q;
-                }
-            });
-
-            if (items.length === 0) return alert('กรุณาเลือกแพ็กเกจ');
-
-            try {
-                const queueRef = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
-                await addDoc(queueRef, {
-                    name, items, totalShots, totalPrice,
-                    createdAt: Date.now(),
-                    time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-                });
-
-                // Reset
-                document.getElementById('customerName').value = '';
-                state.qty = { 1: 0, 2: 0, 3: 0 };
-                [1,2,3].forEach(id => document.getElementById(`qty-${id}`).innerText = '0');
-                document.getElementById('liveTotal').innerText = '0';
-            } catch (err) {
-                alert('เกิดข้อผิดพลาด: ' + err.message);
-            }
-        });
-
-        window.completeOrder = async (id) => {
-            const item = state.queue.find(q => q.id === id);
-            if (!item) return;
-
-            try {
-                const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-                const queueDoc = doc(db, 'artifacts', appId, 'public', 'data', 'queue', id);
-
-                const record = { ...item, completedAt: Date.now() };
-                delete record.id;
-
-                await addDoc(historyRef, record);
-                await deleteDoc(queueDoc);
-            } catch (err) {
-                alert('จบงานไม่สำเร็จ: ' + err.message);
-            }
-        };
-
-        // Graphics & Tables
+        // Chart Setup
         const ctx = document.getElementById('revenueChart').getContext('2d');
         let chart = new Chart(ctx, {
             type: 'doughnut',
@@ -292,7 +270,6 @@
 
             document.getElementById('queueCountBadge').innerText = state.queue.length;
             
-            // Queue Render
             if (state.queue.length === 0) {
                 empty.style.display = 'flex';
                 qList.innerHTML = '';
@@ -301,38 +278,35 @@
                 qList.innerHTML = state.queue.map(q => `
                     <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm fade-in">
                         <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-slate-800 text-sm">${q.name}</span>
-                            <span class="text-[10px] text-slate-400">${q.time}</span>
+                            <span class="font-bold text-slate-800 text-sm">${q.name || 'ลูกค้า'}</span>
+                            <span class="text-[10px] text-slate-400">${q.time || ''}</span>
                         </div>
                         <div class="flex flex-wrap gap-1 mb-4">
-                            ${q.items.map(i => `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-100">${i.name} x${i.qty}</span>`).join('')}
+                            ${q.items ? q.items.map(i => `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-100">${i.name} x${i.qty}</span>`).join('') : ''}
                         </div>
                         <div class="flex justify-between items-center pt-3 border-t border-slate-50">
-                            <span class="text-xs font-bold text-pink-500">${q.totalShots} รูป</span>
+                            <span class="text-xs font-bold text-pink-500">${q.totalShots || 0} รูป</span>
                             <button onclick="completeOrder('${q.id}')" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-all">✅ ถ่ายเสร็จ</button>
                         </div>
                     </div>
                 `).join('');
             }
 
-            // Stats
             const revenue = state.history.reduce((s, i) => s + (i.totalPrice || 0), 0);
             const shots = state.history.reduce((s, i) => s + (i.totalShots || 0), 0);
             document.getElementById('totalRevenueDisplay').innerText = revenue.toLocaleString();
             document.getElementById('totalCustomersDisplay').innerText = state.history.length;
             document.getElementById('totalShotsDisplay').innerText = shots.toLocaleString();
 
-            // History Table (Top 10)
             hBody.innerHTML = state.history.slice(0, 10).map(h => `
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="p-4 text-slate-400 text-[10px]">${h.time || '-'}</td>
-                    <td class="p-4 font-bold text-slate-700">${h.name}</td>
+                    <td class="p-4 font-bold text-slate-700">${h.name || '-'}</td>
                     <td class="p-4 text-slate-500 text-xs">${h.items ? h.items.map(i => `${i.name}x${i.qty}`).join(', ') : '-'}</td>
                     <td class="p-4 text-right font-black text-blue-600">${(h.totalPrice || 0).toLocaleString()}</td>
                 </tr>
             `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-300">ไม่มีประวัติใน Cloud</td></tr>';
 
-            // Chart Update
             let dataArr = [0, 0, 0];
             state.history.forEach(h => {
                 h.items?.forEach(i => {
@@ -344,7 +318,51 @@
             chart.update();
         };
 
-        // Render Package UI initially
+        // Form Submission
+        document.getElementById('orderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!state.user) return alert('รอกำลังเชื่อมต่อฐานข้อมูล...');
+
+            const name = document.getElementById('customerName').value;
+            let items = [];
+            let totalShots = 0;
+            let totalPrice = 0;
+
+            Object.entries(state.qty).forEach(([id, q]) => {
+                if (q > 0) {
+                    const p = PACKAGES.find(pkg => pkg.id == id);
+                    if (p) {
+                        items.push({ name: p.name, qty: q, price: p.price, id: p.id });
+                        totalShots += p.shots * q;
+                        totalPrice += p.price * q;
+                    }
+                }
+            });
+
+            if (items.length === 0) return alert('กรุณาเลือกแพ็กเกจ');
+
+            try {
+                const queueRef = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
+                await addDoc(queueRef, {
+                    name, items, totalShots, totalPrice,
+                    createdAt: Date.now(),
+                    time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+                });
+
+                document.getElementById('customerName').value = '';
+                state.qty = { 1: 0, 2: 0, 3: 0 };
+                PACKAGES.forEach(p => {
+                    const el = document.getElementById(`qty-${p.id}`);
+                    if (el) el.innerText = '0';
+                });
+                document.getElementById('liveTotal').innerText = '0';
+            } catch (err) {
+                console.error("Add error:", err);
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+            }
+        });
+
+        // Initial Render of Packages
         document.getElementById('packageList').innerHTML = PACKAGES.map(p => `
             <div class="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 hover:border-blue-200 transition-all">
                 <span class="text-sm font-semibold text-slate-700">${p.name}</span>
@@ -357,20 +375,6 @@
         `).join('');
 
         init();
-
-        window.exportCSV = () => {
-            if (state.history.length === 0) return alert('ไม่มีข้อมูลให้ดาวน์โหลด');
-            let csv = "Time,Customer,Packages,Price,Shots\n";
-            state.history.forEach(h => {
-                const items = h.items.map(i => `${i.name}x${i.qty}`).join(' | ');
-                csv += `${h.time},${h.name},"${items}",${h.totalPrice},${h.totalShots}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `photobooth_report_${new Date().toISOString().split('T')[0]}.csv`;
-            link.click();
-        };
     </script>
 </body>
 </html>
