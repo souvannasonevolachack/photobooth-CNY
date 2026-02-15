@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Photo Booth Manager & Analytics</title>
+    <title>Photo Booth Manager & Analytics (Cloud Sync)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,7 +39,14 @@
             border-radius: 10px;
         }
 
-        /* สำหรับปุ่มบนมือถือให้กดง่ายขึ้น */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .touch-target {
             min-height: 44px;
             min-width: 44px;
@@ -56,11 +63,13 @@
                     <span class="text-2xl">📸</span>
                     <div>
                         <h1 class="font-bold text-slate-800 leading-none">Photo Booth</h1>
-                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Manager Pro</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Cloud Sync Active</p>
                     </div>
                 </div>
-                <div id="statusBadge" class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">
-                    Offline
+                <div class="flex items-center gap-2">
+                    <div id="syncStatus" class="text-[10px] font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-600 flex items-center gap-1">
+                        <span class="animate-pulse">●</span> กำลังซิงค์...
+                    </div>
                 </div>
             </div>
         </div>
@@ -68,7 +77,7 @@
 
     <main class="flex-grow max-w-7xl mx-auto px-4 py-6 w-full space-y-8">
 
-        <!-- Quick Stats for Mobile -->
+        <!-- Stats -->
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                 <p class="text-[10px] font-bold text-slate-400 uppercase">รายได้วันนี้</p>
@@ -124,14 +133,13 @@
 
                         <div class="pt-2 flex items-center justify-between">
                             <div class="text-xl font-black text-slate-800"><span id="liveTotal">0</span> <span class="text-xs font-normal text-slate-400">กีบ</span></div>
-                            <button type="submit" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all text-sm">
+                            <button type="submit" id="addOrderBtn" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all text-sm">
                                 บันทึกคิว
                             </button>
                         </div>
                     </form>
                 </div>
 
-                <!-- Dashboard Charts (Desktop only or show below on mobile) -->
                 <div class="hidden lg:block bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                     <h4 class="font-bold text-xs uppercase text-slate-400 mb-4">สัดส่วนรายได้</h4>
                     <div class="chart-container">
@@ -158,10 +166,10 @@
             </div>
         </div>
 
-        <!-- History Table (Desktop only) -->
-        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <!-- History -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="font-bold text-xs uppercase text-slate-500">ประวัติล่าสุด</h3>
+                <h3 class="font-bold text-xs uppercase text-slate-500">ประวัติล่าสุด (Cloud)</h3>
                 <button onclick="exportCSV()" class="text-[10px] font-bold text-blue-600 uppercase">Export CSV</button>
             </div>
             <div class="overflow-x-auto">
@@ -171,12 +179,12 @@
             </div>
         </div>
 
-        <!-- Settings Section -->
+        <!-- Connection Settings -->
         <section class="bg-slate-900 text-white rounded-2xl p-6">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                    <h3 class="font-bold text-sm">🔗 การเชื่อมต่อ Google Sheets</h3>
-                    <p class="text-slate-500 text-[10px]">ข้อมูลจะถูกซิงค์ไปที่ Sheet อัตโนมัติเมื่อถ่ายเสร็จ</p>
+                    <h3 class="font-bold text-sm">🔗 ส่วนขยายการเชื่อมต่อ</h3>
+                    <p class="text-slate-500 text-[10px]">ส่งข้อมูลไปที่ Google Sheets (สำรอง)</p>
                 </div>
                 <div class="flex gap-2 w-full md:w-auto">
                     <input type="password" id="scriptUrlInput" placeholder="Google Script URL..." class="bg-slate-800 border-none text-white text-xs rounded-lg px-4 py-2 flex-grow md:w-64 outline-none">
@@ -186,7 +194,18 @@
         </section>
     </main>
 
-    <script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
         const PACKAGES = [
             { id: 1, name: '4 รูป', price: 50000, shots: 4, color: 'blue' },
             { id: 2, name: '10 รูป', price: 100000, shots: 10, color: 'purple' },
@@ -194,96 +213,114 @@
         ];
 
         let state = {
-            queue: JSON.parse(localStorage.getItem('pb_queue')) || [],
-            history: JSON.parse(localStorage.getItem('pb_history')) || [],
+            queue: [],
+            history: [],
             qty: { 1: 0, 2: 0, 3: 0 },
-            scriptUrl: localStorage.getItem('google_script_url') || ''
+            scriptUrl: localStorage.getItem('google_script_url') || '',
+            user: null
         };
 
-        // Charts
+        // Initialize Charts
         const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
         let revenueChart = new Chart(ctxRevenue, {
             type: 'doughnut',
-            data: { 
-                labels: PACKAGES.map(p => p.name), 
-                datasets: [{ data: [0, 0, 0], backgroundColor: ['#3b82f6', '#a855f7', '#f97316'], borderWidth: 0, hoverOffset: 4 }] 
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                cutout: '70%',
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } 
-            }
+            data: { labels: PACKAGES.map(p => p.name), datasets: [{ data: [0, 0, 0], backgroundColor: ['#3b82f6', '#a855f7', '#f97316'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
         });
 
-        function saveState() {
-            localStorage.setItem('pb_queue', JSON.stringify(state.queue));
-            localStorage.setItem('pb_history', JSON.stringify(state.history));
-        }
+        // Helper to update status UI
+        const setStatus = (text, isOnline) => {
+            const el = document.getElementById('syncStatus');
+            el.innerText = text;
+            el.className = isOnline 
+                ? 'text-[10px] font-bold px-3 py-1 rounded-full bg-green-50 text-green-600 flex items-center gap-1'
+                : 'text-[10px] font-bold px-3 py-1 rounded-full bg-red-50 text-red-600 flex items-center gap-1';
+        };
 
-        function saveConnection() {
-            const url = document.getElementById('scriptUrlInput').value.trim();
-            if (!url) return alert('กรุณาระบุ URL');
-            state.scriptUrl = url;
-            localStorage.setItem('google_script_url', url);
-            updateStatusUI();
-            alert('บันทึกการเชื่อมต่อแล้ว');
-        }
-
-        function updateStatusUI() {
-            const badge = document.getElementById('statusBadge');
-            const input = document.getElementById('scriptUrlInput');
-            if (state.scriptUrl) {
-                badge.innerText = 'Connected to Sheet';
-                badge.className = 'text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600';
-                input.value = state.scriptUrl;
-            } else {
-                badge.innerText = 'Offline Mode';
-                badge.className = 'text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500';
-            }
-        }
-
-        async function syncToSheet(item) {
-            if (!state.scriptUrl) return 'local';
+        // 1. Auth and Sync Initialization
+        const init = async () => {
             try {
-                await fetch(state.scriptUrl, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    body: JSON.stringify({
-                        customer: item.name,
-                        details: item.items.map(i => `${i.name} x${i.qty}`).join(', '),
-                        totalPrice: item.totalPrice,
-                        totalShots: item.totalShots
-                    })
-                });
-                return 'synced';
-            } catch (e) { return 'error'; }
-        }
+                // RULE 3: Call authentication FIRST and await it
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
 
-        function updateQty(id, change) {
+                // Listener for Auth state
+                onAuthStateChanged(auth, (user) => {
+                    state.user = user;
+                    if (user) {
+                        setStatus('🟢 ออนไลน์', true);
+                        setupSubscriptions(user);
+                    } else {
+                        setStatus('🔴 ออฟไลน์', false);
+                    }
+                });
+            } catch (err) {
+                console.error("Auth Init Error:", err);
+                setStatus('🔴 ข้อผิดพลาดสิทธิ์', false);
+            }
+        };
+
+        // Setup real-time listeners only after Auth
+        const setupSubscriptions = (user) => {
+            if (!user) return;
+
+            // RULE 1: Strict Paths
+            const queueCol = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
+            const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+
+            // Listen to Queue (RULE 2: Simple query only)
+            onSnapshot(queueCol, (snapshot) => {
+                state.queue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                                         .sort((a, b) => a.createdAt - b.createdAt);
+                render();
+            }, (err) => {
+                console.error("Queue Sync Error:", err);
+                setStatus('🔴 ข้อผิดพลาดคิว', false);
+            });
+
+            // Listen to History (RULE 2: Simple query only)
+            onSnapshot(historyCol, (snapshot) => {
+                state.history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                                           .sort((a, b) => b.completedAt - a.completedAt);
+                render();
+            }, (err) => {
+                console.error("History Sync Error:", err);
+                setStatus('🔴 ข้อผิดพลาดประวัติ', false);
+            });
+        };
+
+        init();
+
+        // 2. Actions
+        window.updateQty = (id, change) => {
             state.qty[id] = Math.max(0, state.qty[id] + change);
             document.getElementById(`qty-${id}`).innerText = state.qty[id];
             calculateTotal();
-        }
+        };
 
-        function calculateTotal() {
+        const calculateTotal = () => {
             let total = 0;
             Object.entries(state.qty).forEach(([id, qty]) => {
                 total += PACKAGES.find(p => p.id == id).price * qty;
             });
             document.getElementById('liveTotal').innerText = total.toLocaleString();
-        }
+        };
 
-        document.getElementById('orderForm').addEventListener('submit', function(e) {
+        document.getElementById('orderForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            // Guard every operation with if (!user)
+            if (!state.user) return alert('กรุณารอระบบเชื่อมต่อสักครู่...');
+            
             const nameEl = document.getElementById('customerName');
             let items = [], totalShots = 0, totalPrice = 0;
 
             Object.entries(state.qty).forEach(([id, qty]) => {
                 if (qty > 0) {
                     const pkg = PACKAGES.find(p => p.id == id);
-                    items.push({ ...pkg, qty });
+                    items.push({ id: pkg.id, name: pkg.name, price: pkg.price, qty });
                     totalShots += pkg.shots * qty;
                     totalPrice += pkg.price * qty;
                 }
@@ -291,39 +328,65 @@
 
             if (items.length === 0) return alert('กรุณาเลือกอย่างน้อย 1 แพ็กเกจ');
 
-            state.queue.push({
-                id: Date.now(),
-                name: nameEl.value,
-                items, totalShots, totalPrice,
-                time: new Date().toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })
-            });
+            try {
+                const queueCol = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
+                await addDoc(queueCol, {
+                    name: nameEl.value,
+                    items, 
+                    totalShots, 
+                    totalPrice,
+                    createdAt: Date.now(),
+                    time: new Date().toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })
+                });
 
-            nameEl.value = '';
-            state.qty = { 1: 0, 2: 0, 3: 0 };
-            [1, 2, 3].forEach(id => document.getElementById(`qty-${id}`).innerText = '0');
-            calculateTotal();
-            saveState();
-            render();
+                // Reset Form
+                nameEl.value = '';
+                state.qty = { 1: 0, 2: 0, 3: 0 };
+                [1, 2, 3].forEach(id => document.getElementById(`qty-${id}`).innerText = '0');
+                calculateTotal();
+            } catch (err) { 
+                console.error("Add Order Error:", err);
+                alert('บันทึกไม่สำเร็จ: ' + err.message); 
+            }
         });
 
-        async function completeOrder(id) {
-            const idx = state.queue.findIndex(q => q.id === id);
-            const item = state.queue[idx];
-            
-            const historyItem = { ...item, completedAt: new Date() };
-            state.history.unshift(historyItem);
-            state.queue.splice(idx, 1);
-            
-            saveState();
-            render();
+        window.completeOrder = async (id) => {
+            if (!state.user) return;
+            const item = state.queue.find(q => q.id === id);
+            if (!item) return;
 
-            const syncStatus = await syncToSheet(historyItem);
-            historyItem.syncStatus = syncStatus;
-            render();
-        }
+            try {
+                const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+                const queueDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', id);
 
-        function render() {
-            // Queue
+                // 1. Save to History
+                const historyItem = { ...item, completedAt: Date.now() };
+                delete historyItem.id; 
+                await addDoc(historyCol, historyItem);
+
+                // 2. Remove from Queue
+                await deleteDoc(queueDocRef);
+
+                // 3. Sync to Google Sheets (Backup)
+                if (state.scriptUrl) {
+                    fetch(state.scriptUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify({
+                            customer: item.name,
+                            details: item.items.map(i => `${i.name} x${i.qty}`).join(', '),
+                            totalPrice: item.totalPrice,
+                            totalShots: item.totalShots
+                        })
+                    }).catch(e => console.warn('Google Sheet Sync Failed'));
+                }
+            } catch (err) { 
+                console.error("Complete Order Error:", err);
+                alert('เกิดข้อผิดพลาด: ' + err.message); 
+            }
+        };
+
+        const render = () => {
             const listEl = document.getElementById('queueList');
             const emptyEl = document.getElementById('emptyState');
             document.getElementById('queueCountBadge').innerText = state.queue.length;
@@ -344,13 +407,12 @@
                         </div>
                         <div class="flex justify-between items-center pt-3 border-t border-slate-50">
                             <span class="text-xs font-bold text-pink-500">${item.totalShots} รูป</span>
-                            <button onclick="completeOrder(${item.id})" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-all">✅ เสร็จสิ้น</button>
+                            <button onclick="completeOrder('${item.id}')" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-all">✅ เสร็จสิ้น</button>
                         </div>
                     </div>
                 `).join('');
             }
 
-            // Stats & Charts
             const totalRevenue = state.history.reduce((s, i) => s + i.totalPrice, 0);
             const totalShots = state.history.reduce((s, i) => s + i.totalShots, 0);
             document.getElementById('totalRevenueDisplay').innerText = totalRevenue.toLocaleString();
@@ -367,7 +429,6 @@
             revenueChart.data.datasets[0].data = pkgRevenue;
             revenueChart.update();
 
-            // History Table
             const hBody = document.getElementById('historyTableBody');
             hBody.innerHTML = state.history.slice(0, 10).map(item => `
                 <tr class="hover:bg-slate-50 transition-colors">
@@ -375,24 +436,29 @@
                     <td class="p-4 font-bold text-slate-700">${item.name}</td>
                     <td class="p-4 text-slate-500 text-xs">${item.items.map(i=>`${i.name}x${i.qty}`).join(', ')}</td>
                     <td class="p-4 text-right font-black text-blue-600">${item.totalPrice.toLocaleString()}</td>
-                    <td class="p-4 text-center">${item.syncStatus === 'synced' ? '☁️' : '➖'}</td>
+                    <td class="p-4 text-center">☁️</td>
                 </tr>
-            `).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-300">ไม่มีประวัติการขาย</td></tr>';
-        }
+            `).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-300">ไม่มีประวัติการขายใน Cloud</td></tr>';
+        };
 
-        function exportCSV() {
+        window.saveConnection = () => {
+            const url = document.getElementById('scriptUrlInput').value.trim();
+            state.scriptUrl = url;
+            localStorage.setItem('google_script_url', url);
+            alert('บันทึกการเชื่อมต่อ Sheets แล้ว');
+        };
+
+        window.exportCSV = () => {
             if(!state.history.length) return;
             let csv = "Time,Customer,Package,Price,Shots\n";
             state.history.forEach(h => csv += `${h.time},${h.name},${h.items.map(i=>`${i.name}x${i.qty}`).join('|')},${h.totalPrice},${h.totalShots}\n`);
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `sales_${new Date().toLocaleDateString()}.csv`;
+            link.download = `sales_report_${new Date().toLocaleDateString()}.csv`;
             link.click();
-        }
+        };
 
-        updateStatusUI();
-        render();
     </script>
 </body>
 </html>
