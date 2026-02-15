@@ -3,59 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Photo Booth Manager & Analytics (Cloud Sync)</title>
+    <title>Photo Booth Manager (Cloud Sync Fixed)</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body {
-            font-family: 'Noto Sans Thai', sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 250px;
-        }
-
-        .custom-scroll::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .touch-target {
-            min-height: 44px;
-            min-width: 44px;
-        }
+        body { font-family: 'Noto Sans Thai', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .chart-container { position: relative; width: 100%; height: 250px; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="min-h-screen flex flex-col pb-20 md:pb-0">
 
-    <!-- Header -->
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
@@ -63,32 +28,29 @@
                     <span class="text-2xl">📸</span>
                     <div>
                         <h1 class="font-bold text-slate-800 leading-none">Photo Booth</h1>
-                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Cloud Sync Active</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Enterprise Cloud</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div id="syncStatus" class="text-[10px] font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-600 flex items-center gap-1">
-                        <span class="animate-pulse">●</span> กำลังซิงค์...
-                    </div>
+                <div id="syncStatus" class="text-[10px] font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-400 flex items-center gap-1">
+                    <span id="statusIcon">⚪</span> <span id="statusText">กำลังเตรียมระบบ...</span>
                 </div>
             </div>
         </div>
     </nav>
 
     <main class="flex-grow max-w-7xl mx-auto px-4 py-6 w-full space-y-8">
-
-        <!-- Stats -->
+        <!-- Stats Summary -->
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-[10px] font-bold text-slate-400 uppercase">รายได้วันนี้</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase">รายได้ทั้งหมด</p>
                 <p class="text-xl font-black text-blue-600 mt-1"><span id="totalRevenueDisplay">0</span> <span class="text-[10px] text-slate-400 font-normal">กีบ</span></p>
             </div>
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-[10px] font-bold text-slate-400 uppercase">คิวสำเร็จ</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase">ออเดอร์สำเร็จ</p>
                 <p class="text-xl font-black text-slate-800 mt-1"><span id="totalCustomersDisplay">0</span> <span class="text-[10px] text-slate-400 font-normal">คน</span></p>
             </div>
             <div class="hidden md:block bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-[10px] font-bold text-slate-400 uppercase">จำนวนรูป</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase">จำนวนรูปถ่าย</p>
                 <p class="text-xl font-black text-slate-800 mt-1"><span id="totalShotsDisplay">0</span> <span class="text-[10px] text-slate-400 font-normal">รูป</span></p>
             </div>
         </div>
@@ -98,50 +60,27 @@
             <div class="lg:col-span-5 space-y-6">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
                     <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-sm uppercase">
-                        <span class="w-6 h-6 bg-blue-100 text-blue-600 rounded flex items-center justify-center text-xs">＋</span> รับออเดอร์ใหม่
+                        <span class="w-6 h-6 bg-blue-100 text-blue-600 rounded flex items-center justify-center text-xs">＋</span> รับลูกค้าใหม่
                     </h3>
                     <form id="orderForm" class="space-y-4">
-                        <input type="text" id="customerName" placeholder="ชื่อลูกค้า..." 
+                        <input type="text" id="customerName" placeholder="ชื่อเล่นลูกค้า..." 
                             class="w-full px-4 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" required>
                         
-                        <div class="grid grid-cols-1 gap-2">
-                            <div class="flex items-center justify-between p-3 rounded-xl bg-blue-50/50 border border-blue-100">
-                                <span class="text-sm font-bold text-slate-700">4 รูป (50k)</span>
-                                <div class="flex items-center gap-4 bg-white rounded-lg px-2 py-1 shadow-sm">
-                                    <button type="button" onclick="updateQty(1, -1)" class="touch-target text-slate-400 font-bold">➖</button>
-                                    <span id="qty-1" class="font-bold w-4 text-center text-sm">0</span>
-                                    <button type="button" onclick="updateQty(1, 1)" class="touch-target text-blue-600 font-bold">➕</button>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/50 border border-purple-100">
-                                <span class="text-sm font-bold text-slate-700">10 รูป (100k)</span>
-                                <div class="flex items-center gap-4 bg-white rounded-lg px-2 py-1 shadow-sm">
-                                    <button type="button" onclick="updateQty(2, -1)" class="touch-target text-slate-400 font-bold">➖</button>
-                                    <span id="qty-2" class="font-bold w-4 text-center text-sm">0</span>
-                                    <button type="button" onclick="updateQty(2, 1)" class="touch-target text-purple-600 font-bold">➕</button>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between p-3 rounded-xl bg-orange-50/50 border border-orange-100">
-                                <span class="text-sm font-bold text-slate-700">1 รูป (15k)</span>
-                                <div class="flex items-center gap-4 bg-white rounded-lg px-2 py-1 shadow-sm">
-                                    <button type="button" onclick="updateQty(3, -1)" class="touch-target text-slate-400 font-bold">➖</button>
-                                    <span id="qty-3" class="font-bold w-4 text-center text-sm">0</span>
-                                    <button type="button" onclick="updateQty(3, 1)" class="touch-target text-orange-600 font-bold">➕</button>
-                                </div>
-                            </div>
+                        <div class="space-y-2" id="packageList">
+                            <!-- Package UI will be generated here -->
                         </div>
 
                         <div class="pt-2 flex items-center justify-between">
                             <div class="text-xl font-black text-slate-800"><span id="liveTotal">0</span> <span class="text-xs font-normal text-slate-400">กีบ</span></div>
-                            <button type="submit" id="addOrderBtn" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all text-sm">
-                                บันทึกคิว
+                            <button type="submit" id="submitBtn" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all text-sm disabled:opacity-50">
+                                เพิ่มเข้าคิว
                             </button>
                         </div>
                     </form>
                 </div>
 
                 <div class="hidden lg:block bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                    <h4 class="font-bold text-xs uppercase text-slate-400 mb-4">สัดส่วนรายได้</h4>
+                    <h4 class="font-bold text-xs uppercase text-slate-400 mb-4">สรุปรายได้</h4>
                     <div class="chart-container">
                         <canvas id="revenueChart"></canvas>
                     </div>
@@ -149,316 +88,289 @@
             </div>
 
             <!-- Right: Queue List -->
-            <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+            <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-[400px]">
                 <div class="p-5 border-b border-slate-50 flex justify-between items-center">
                     <h3 class="font-bold text-slate-800 text-sm uppercase flex items-center gap-2">
-                        ⏱️ คิวรอถ่าย <span id="queueCountBadge" class="bg-pink-100 text-pink-600 px-2 py-0.5 rounded text-[10px]">0</span>
+                        ⏱️ คิวที่กำลังรอ <span id="queueCountBadge" class="bg-pink-100 text-pink-600 px-2 py-0.5 rounded text-[10px]">0</span>
                     </h3>
                 </div>
 
-                <div class="p-5 flex-grow overflow-y-auto custom-scroll min-h-[300px]">
+                <div class="p-5 flex-grow overflow-y-auto custom-scroll">
                     <div id="emptyState" class="flex flex-col items-center justify-center h-full text-slate-300 py-10">
-                        <span class="text-4xl mb-2">📸</span>
-                        <p class="text-sm">ไม่มีลูกค้าในคิว</p>
+                        <span class="text-4xl mb-2">📷</span>
+                        <p class="text-sm">ไม่มีคิวในขณะนี้</p>
                     </div>
                     <div id="queueList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
             </div>
         </div>
 
-        <!-- History -->
+        <!-- History Table -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="font-bold text-xs uppercase text-slate-500">ประวัติล่าสุด (Cloud)</h3>
-                <button onclick="exportCSV()" class="text-[10px] font-bold text-blue-600 uppercase">Export CSV</button>
+                <h3 class="font-bold text-xs uppercase text-slate-500">ประวัติการขายล่าสุด</h3>
+                <button onclick="exportCSV()" class="text-[10px] font-bold text-blue-600 uppercase">ดาวน์โหลดรายงาน</button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-[10px] text-slate-400 border-b border-slate-50">
+                            <th class="p-4 font-bold uppercase">เวลา</th>
+                            <th class="p-4 font-bold uppercase">ลูกค้า</th>
+                            <th class="p-4 font-bold uppercase">รายการ</th>
+                            <th class="p-4 font-bold uppercase text-right">ยอดเงิน</th>
+                        </tr>
+                    </thead>
                     <tbody id="historyTableBody" class="divide-y divide-slate-50"></tbody>
                 </table>
             </div>
         </div>
-
-        <!-- Connection Settings -->
-        <section class="bg-slate-900 text-white rounded-2xl p-6">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                    <h3 class="font-bold text-sm">🔗 ส่วนขยายการเชื่อมต่อ</h3>
-                    <p class="text-slate-500 text-[10px]">ส่งข้อมูลไปที่ Google Sheets (สำรอง)</p>
-                </div>
-                <div class="flex gap-2 w-full md:w-auto">
-                    <input type="password" id="scriptUrlInput" placeholder="Google Script URL..." class="bg-slate-800 border-none text-white text-xs rounded-lg px-4 py-2 flex-grow md:w-64 outline-none">
-                    <button onclick="saveConnection()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-xs font-bold transition-all">บันทึก</button>
-                </div>
-            </div>
-        </section>
     </main>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
+        // Global environment variables
         const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'photobooth-default';
+        
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         const PACKAGES = [
-            { id: 1, name: '4 รูป', price: 50000, shots: 4, color: 'blue' },
-            { id: 2, name: '10 รูป', price: 100000, shots: 10, color: 'purple' },
-            { id: 3, name: '1 รูป', price: 15000, shots: 1, color: 'orange' },
+            { id: 1, name: '4 รูป (มาตรฐาน)', price: 50000, shots: 4, color: 'blue' },
+            { id: 2, name: '10 รูป (ชุดใหญ่)', price: 100000, shots: 10, color: 'purple' },
+            { id: 3, name: '1 รูป (มินิ)', price: 15000, shots: 1, color: 'orange' },
         ];
 
         let state = {
+            user: null,
             queue: [],
             history: [],
-            qty: { 1: 0, 2: 0, 3: 0 },
-            scriptUrl: localStorage.getItem('google_script_url') || '',
-            user: null
+            qty: { 1: 0, 2: 0, 3: 0 }
         };
 
-        // Initialize Charts
-        const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
-        let revenueChart = new Chart(ctxRevenue, {
-            type: 'doughnut',
-            data: { labels: PACKAGES.map(p => p.name), datasets: [{ data: [0, 0, 0], backgroundColor: ['#3b82f6', '#a855f7', '#f97316'], borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
-        });
-
-        // Helper to update status UI
-        const setStatus = (text, isOnline) => {
+        // UI Updates
+        const updateStatusUI = (status, colorClass) => {
             const el = document.getElementById('syncStatus');
-            el.innerText = text;
-            el.className = isOnline 
-                ? 'text-[10px] font-bold px-3 py-1 rounded-full bg-green-50 text-green-600 flex items-center gap-1'
-                : 'text-[10px] font-bold px-3 py-1 rounded-full bg-red-50 text-red-600 flex items-center gap-1';
+            const icon = document.getElementById('statusIcon');
+            const text = document.getElementById('statusText');
+            
+            text.innerText = status;
+            el.className = `text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 ${colorClass}`;
+            icon.innerText = colorClass.includes('green') ? '🟢' : (colorClass.includes('red') ? '🔴' : '⚪');
         };
 
-        // 1. Auth and Sync Initialization
+        // Initialization
         const init = async () => {
             try {
-                // RULE 3: Call authentication FIRST and await it
+                // RULE 3: Auth FIRST
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                // Listener for Auth state
                 onAuthStateChanged(auth, (user) => {
-                    state.user = user;
                     if (user) {
-                        setStatus('🟢 ออนไลน์', true);
-                        setupSubscriptions(user);
+                        state.user = user;
+                        updateStatusUI('เชื่อมต่อ Cloud แล้ว', 'bg-green-50 text-green-600');
+                        startSync();
                     } else {
-                        setStatus('🔴 ออฟไลน์', false);
+                        updateStatusUI('ไม่ได้เข้าสู่ระบบ', 'bg-red-50 text-red-600');
                     }
                 });
             } catch (err) {
-                console.error("Auth Init Error:", err);
-                setStatus('🔴 ข้อผิดพลาดสิทธิ์', false);
+                console.error("Auth error:", err);
+                updateStatusUI('เชื่อมต่อล้มเหลว', 'bg-red-50 text-red-600');
             }
         };
 
-        // Setup real-time listeners only after Auth
-        const setupSubscriptions = (user) => {
-            if (!user) return;
-
+        const startSync = () => {
             // RULE 1: Strict Paths
-            const queueCol = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
-            const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+            const queueRef = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
+            const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
 
-            // Listen to Queue (RULE 2: Simple query only)
-            onSnapshot(queueCol, (snapshot) => {
-                state.queue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                                         .sort((a, b) => a.createdAt - b.createdAt);
+            // Listen to Queue (Rule 2: No complex queries)
+            onSnapshot(queueRef, (snap) => {
+                state.queue = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                                 .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
                 render();
-            }, (err) => {
-                console.error("Queue Sync Error:", err);
-                setStatus('🔴 ข้อผิดพลาดคิว', false);
-            });
+            }, (err) => console.error("Queue Sync Error:", err));
 
-            // Listen to History (RULE 2: Simple query only)
-            onSnapshot(historyCol, (snapshot) => {
-                state.history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                                           .sort((a, b) => b.completedAt - a.completedAt);
+            // Listen to History
+            onSnapshot(historyRef, (snap) => {
+                state.history = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                                   .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
                 render();
-            }, (err) => {
-                console.error("History Sync Error:", err);
-                setStatus('🔴 ข้อผิดพลาดประวัติ', false);
-            });
+            }, (err) => console.error("History Sync Error:", err));
         };
 
-        init();
-
-        // 2. Actions
+        // Form Logic
         window.updateQty = (id, change) => {
             state.qty[id] = Math.max(0, state.qty[id] + change);
             document.getElementById(`qty-${id}`).innerText = state.qty[id];
-            calculateTotal();
-        };
-
-        const calculateTotal = () => {
+            
             let total = 0;
-            Object.entries(state.qty).forEach(([id, qty]) => {
-                total += PACKAGES.find(p => p.id == id).price * qty;
+            Object.entries(state.qty).forEach(([qid, count]) => {
+                total += PACKAGES.find(p => p.id == qid).price * count;
             });
             document.getElementById('liveTotal').innerText = total.toLocaleString();
         };
 
         document.getElementById('orderForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            // Guard every operation with if (!user)
-            if (!state.user) return alert('กรุณารอระบบเชื่อมต่อสักครู่...');
-            
-            const nameEl = document.getElementById('customerName');
-            let items = [], totalShots = 0, totalPrice = 0;
+            if (!state.user) return alert('รอกำลังเชื่อมต่อฐานข้อมูล...');
 
-            Object.entries(state.qty).forEach(([id, qty]) => {
-                if (qty > 0) {
-                    const pkg = PACKAGES.find(p => p.id == id);
-                    items.push({ id: pkg.id, name: pkg.name, price: pkg.price, qty });
-                    totalShots += pkg.shots * qty;
-                    totalPrice += pkg.price * qty;
+            const name = document.getElementById('customerName').value;
+            let items = [];
+            let totalShots = 0;
+            let totalPrice = 0;
+
+            Object.entries(state.qty).forEach(([id, q]) => {
+                if (q > 0) {
+                    const p = PACKAGES.find(pkg => pkg.id == id);
+                    items.push({ name: p.name, qty: q, price: p.price, id: p.id });
+                    totalShots += p.shots * q;
+                    totalPrice += p.price * q;
                 }
             });
 
-            if (items.length === 0) return alert('กรุณาเลือกอย่างน้อย 1 แพ็กเกจ');
+            if (items.length === 0) return alert('กรุณาเลือกแพ็กเกจ');
 
             try {
-                const queueCol = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
-                await addDoc(queueCol, {
-                    name: nameEl.value,
-                    items, 
-                    totalShots, 
-                    totalPrice,
+                const queueRef = collection(db, 'artifacts', appId, 'public', 'data', 'queue');
+                await addDoc(queueRef, {
+                    name, items, totalShots, totalPrice,
                     createdAt: Date.now(),
-                    time: new Date().toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })
+                    time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
                 });
 
-                // Reset Form
-                nameEl.value = '';
+                // Reset
+                document.getElementById('customerName').value = '';
                 state.qty = { 1: 0, 2: 0, 3: 0 };
-                [1, 2, 3].forEach(id => document.getElementById(`qty-${id}`).innerText = '0');
-                calculateTotal();
-            } catch (err) { 
-                console.error("Add Order Error:", err);
-                alert('บันทึกไม่สำเร็จ: ' + err.message); 
+                [1,2,3].forEach(id => document.getElementById(`qty-${id}`).innerText = '0');
+                document.getElementById('liveTotal').innerText = '0';
+            } catch (err) {
+                alert('เกิดข้อผิดพลาด: ' + err.message);
             }
         });
 
         window.completeOrder = async (id) => {
-            if (!state.user) return;
             const item = state.queue.find(q => q.id === id);
             if (!item) return;
 
             try {
-                const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-                const queueDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', id);
+                const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+                const queueDoc = doc(db, 'artifacts', appId, 'public', 'data', 'queue', id);
 
-                // 1. Save to History
-                const historyItem = { ...item, completedAt: Date.now() };
-                delete historyItem.id; 
-                await addDoc(historyCol, historyItem);
+                const record = { ...item, completedAt: Date.now() };
+                delete record.id;
 
-                // 2. Remove from Queue
-                await deleteDoc(queueDocRef);
-
-                // 3. Sync to Google Sheets (Backup)
-                if (state.scriptUrl) {
-                    fetch(state.scriptUrl, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        body: JSON.stringify({
-                            customer: item.name,
-                            details: item.items.map(i => `${i.name} x${i.qty}`).join(', '),
-                            totalPrice: item.totalPrice,
-                            totalShots: item.totalShots
-                        })
-                    }).catch(e => console.warn('Google Sheet Sync Failed'));
-                }
-            } catch (err) { 
-                console.error("Complete Order Error:", err);
-                alert('เกิดข้อผิดพลาด: ' + err.message); 
+                await addDoc(historyRef, record);
+                await deleteDoc(queueDoc);
+            } catch (err) {
+                alert('จบงานไม่สำเร็จ: ' + err.message);
             }
         };
 
-        const render = () => {
-            const listEl = document.getElementById('queueList');
-            const emptyEl = document.getElementById('emptyState');
-            document.getElementById('queueCountBadge').innerText = state.queue.length;
+        // Graphics & Tables
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        let chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: PACKAGES.map(p => p.name), datasets: [{ data: [0, 0, 0], backgroundColor: ['#3b82f6', '#a855f7', '#f97316'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10 } } } } }
+        });
 
+        const render = () => {
+            const qList = document.getElementById('queueList');
+            const hBody = document.getElementById('historyTableBody');
+            const empty = document.getElementById('emptyState');
+
+            document.getElementById('queueCountBadge').innerText = state.queue.length;
+            
+            // Queue Render
             if (state.queue.length === 0) {
-                emptyEl.style.display = 'flex';
-                listEl.innerHTML = '';
+                empty.style.display = 'flex';
+                qList.innerHTML = '';
             } else {
-                emptyEl.style.display = 'none';
-                listEl.innerHTML = state.queue.map(item => `
+                empty.style.display = 'none';
+                qList.innerHTML = state.queue.map(q => `
                     <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm fade-in">
                         <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-slate-800 text-sm">${item.name}</span>
-                            <span class="text-[10px] text-slate-400">${item.time}</span>
+                            <span class="font-bold text-slate-800 text-sm">${q.name}</span>
+                            <span class="text-[10px] text-slate-400">${q.time}</span>
                         </div>
                         <div class="flex flex-wrap gap-1 mb-4">
-                            ${item.items.map(i => `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${i.name} x${i.qty}</span>`).join('')}
+                            ${q.items.map(i => `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-100">${i.name} x${i.qty}</span>`).join('')}
                         </div>
                         <div class="flex justify-between items-center pt-3 border-t border-slate-50">
-                            <span class="text-xs font-bold text-pink-500">${item.totalShots} รูป</span>
-                            <button onclick="completeOrder('${item.id}')" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-all">✅ เสร็จสิ้น</button>
+                            <span class="text-xs font-bold text-pink-500">${q.totalShots} รูป</span>
+                            <button onclick="completeOrder('${q.id}')" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-all">✅ ถ่ายเสร็จ</button>
                         </div>
                     </div>
                 `).join('');
             }
 
-            const totalRevenue = state.history.reduce((s, i) => s + i.totalPrice, 0);
-            const totalShots = state.history.reduce((s, i) => s + i.totalShots, 0);
-            document.getElementById('totalRevenueDisplay').innerText = totalRevenue.toLocaleString();
+            // Stats
+            const revenue = state.history.reduce((s, i) => s + (i.totalPrice || 0), 0);
+            const shots = state.history.reduce((s, i) => s + (i.totalShots || 0), 0);
+            document.getElementById('totalRevenueDisplay').innerText = revenue.toLocaleString();
             document.getElementById('totalCustomersDisplay').innerText = state.history.length;
-            document.getElementById('totalShotsDisplay').innerText = totalShots.toLocaleString();
+            document.getElementById('totalShotsDisplay').innerText = shots.toLocaleString();
 
-            let pkgRevenue = [0, 0, 0];
+            // History Table (Top 10)
+            hBody.innerHTML = state.history.slice(0, 10).map(h => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="p-4 text-slate-400 text-[10px]">${h.time || '-'}</td>
+                    <td class="p-4 font-bold text-slate-700">${h.name}</td>
+                    <td class="p-4 text-slate-500 text-xs">${h.items ? h.items.map(i => `${i.name}x${i.qty}`).join(', ') : '-'}</td>
+                    <td class="p-4 text-right font-black text-blue-600">${(h.totalPrice || 0).toLocaleString()}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-300">ไม่มีประวัติใน Cloud</td></tr>';
+
+            // Chart Update
+            let dataArr = [0, 0, 0];
             state.history.forEach(h => {
-                h.items.forEach(item => {
-                    const idx = PACKAGES.findIndex(p => p.id == item.id);
-                    if (idx !== -1) pkgRevenue[idx] += (item.price * item.qty);
+                h.items?.forEach(i => {
+                    const idx = PACKAGES.findIndex(p => p.id == i.id);
+                    if (idx !== -1) dataArr[idx] += (i.price * i.qty);
                 });
             });
-            revenueChart.data.datasets[0].data = pkgRevenue;
-            revenueChart.update();
-
-            const hBody = document.getElementById('historyTableBody');
-            hBody.innerHTML = state.history.slice(0, 10).map(item => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-4 text-slate-400 text-[10px]">${item.time}</td>
-                    <td class="p-4 font-bold text-slate-700">${item.name}</td>
-                    <td class="p-4 text-slate-500 text-xs">${item.items.map(i=>`${i.name}x${i.qty}`).join(', ')}</td>
-                    <td class="p-4 text-right font-black text-blue-600">${item.totalPrice.toLocaleString()}</td>
-                    <td class="p-4 text-center">☁️</td>
-                </tr>
-            `).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-300">ไม่มีประวัติการขายใน Cloud</td></tr>';
+            chart.data.datasets[0].data = dataArr;
+            chart.update();
         };
 
-        window.saveConnection = () => {
-            const url = document.getElementById('scriptUrlInput').value.trim();
-            state.scriptUrl = url;
-            localStorage.setItem('google_script_url', url);
-            alert('บันทึกการเชื่อมต่อ Sheets แล้ว');
-        };
+        // Render Package UI initially
+        document.getElementById('packageList').innerHTML = PACKAGES.map(p => `
+            <div class="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 hover:border-blue-200 transition-all">
+                <span class="text-sm font-semibold text-slate-700">${p.name}</span>
+                <div class="flex items-center gap-4 bg-slate-50 rounded-lg px-2 py-1">
+                    <button type="button" onclick="updateQty(${p.id}, -1)" class="touch-target text-slate-400 hover:text-red-500 font-bold">➖</button>
+                    <span id="qty-${p.id}" class="font-bold w-4 text-center text-sm">0</span>
+                    <button type="button" onclick="updateQty(${p.id}, 1)" class="touch-target text-blue-600 hover:scale-110 font-bold">➕</button>
+                </div>
+            </div>
+        `).join('');
+
+        init();
 
         window.exportCSV = () => {
-            if(!state.history.length) return;
-            let csv = "Time,Customer,Package,Price,Shots\n";
-            state.history.forEach(h => csv += `${h.time},${h.name},${h.items.map(i=>`${i.name}x${i.qty}`).join('|')},${h.totalPrice},${h.totalShots}\n`);
+            if (state.history.length === 0) return alert('ไม่มีข้อมูลให้ดาวน์โหลด');
+            let csv = "Time,Customer,Packages,Price,Shots\n";
+            state.history.forEach(h => {
+                const items = h.items.map(i => `${i.name}x${i.qty}`).join(' | ');
+                csv += `${h.time},${h.name},"${items}",${h.totalPrice},${h.totalShots}\n`;
+            });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `sales_report_${new Date().toLocaleDateString()}.csv`;
+            link.download = `photobooth_report_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
         };
-
     </script>
 </body>
 </html>
